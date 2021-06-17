@@ -1,0 +1,38 @@
+{
+    "env": {
+        "browser": true,
+        "commonjs": true,
+        "es2021": true
+    },
+    "extends": [
+        "eslint:recommended", "airbnb-base"
+    ],
+    "parserOptions": {
+        "ecmaVersion": 12,
+        "sourceType": "module"
+    },
+    "rules": {
+        "indent": ["warn", 2, { "SwitchCase": 1 }],
+        "no-trailing-spaces": ["warn", { "skipBlankLines": true, "ignoreComments": true }],
+        "space-before-blocks": "warn",
+        "space-infix-ops": "warn",
+        "object-curly-spacing": ["warn", "always"],
+        "object-curly-newline": "off",
+        "padded-blocks": "off",
+        "linebreak-style": ["warn", "windows"],
+
+        "max-lines": ["warn", { "max": 300, "skipBlankLines": true, "skipComments": true }],
+        "max-lines-per-function": ["warn", { "max": 30, "skipBlankLines": true, "skipComments": true }],
+        "max-params": "warn",
+
+        "require-await": "error",
+        "import/extensions": "off",
+        
+        "no-unused-vars": "warn",
+        "no-use-before-define": ["warn", { "functions": false }],
+        "no-console": ["warn", { "allow": ["info", "warn", "error", "trace"] }],
+        "no-restricted-syntax": "off",
+        "no-await-in-loop": "off",
+        "no-useless-escape": "off"
+    }
+}

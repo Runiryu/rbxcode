@@ -1,0 +1,1314 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+	<External>null</External>
+	<External>nil</External>
+	<Item class="Folder" referent="RBXDF96C211C4B84D92BCF82E4B324F974D">
+		<Properties>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<string name="Name">RBXCode</string>
+			<int64 name="SourceAssetId">-1</int64>
+			<BinaryString name="Tags"></BinaryString>
+		</Properties>
+		<Item class="ModuleScript" referent="RBXB1911E38721B40829BE8D0BC1FFAC370">
+			<Properties>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<Content name="LinkedSource"><null></null></Content>
+				<string name="Name">Sync</string>
+				<string name="ScriptGuid">{A1C86EFD-1BE1-4EDF-B4EC-1841CCDE6C8F}</string>
+				<ProtectedString name="Source"><![CDATA[local HttpService = game:GetService("HttpService")
+local StudioService = game:GetService("StudioService")
+
+local View = require(script.Parent.View)
+local ChangeWatcher = require(script.Parent.ChangeWatcher)
+local Path = require(script.Parent.Path)
+
+local services = {
+	Workspace = game:GetService("Workspace"),
+	ReplicatedFirst = game:GetService("ReplicatedFirst"),
+	ReplicatedStorage = game:GetService("ReplicatedStorage"),
+	ServerStorage = game:GetService("ServerStorage"),
+	ServerScriptService = game:GetService("ServerScriptService"),
+	StarterGui = game:GetService("StarterGui"),
+	StarterPack = game:GetService("StarterPack"),
+	StarterPlayer = game:GetService("StarterPlayer")
+}
+local SYNC_INTERVAL = 2
+
+local plugin
+
+local Sync = {
+	connected = false,
+	instanceId = HttpService:GenerateGUID(false)
+}
+
+function Sync:init(_plugin: Plugin, _toolbar: PluginToolbar)
+	plugin = _plugin
+	
+	View:init(self, _plugin, _toolbar)
+	
+	for name, service in pairs(services) do
+		for _, descendant in ipairs(service:GetDescendants()) do
+			if not descendant:IsA("BasePart") then
+				ChangeWatcher:watch(descendant)
+			end
+		end
+
+		service.DescendantAdded:Connect(function(descendant)
+			if descendant:IsA("LuaSourceContainer") then
+				table.insert(ChangeWatcher.changes, {
+					change = "Added",
+					path = Path.getPath(descendant),
+					className = descendant.ClassName,
+					content = descendant.Source
+				})
+			end
+			
+			if not descendant:IsA("BasePart") and not ChangeWatcher.connections[descendant] then
+				ChangeWatcher:watch(descendant)
+			end
+		end)
+
+		service.DescendantRemoving:Connect(function(descendant)
+			table.insert(ChangeWatcher.changes, {
+				change = "Removed",
+				path = Path.getPath(descendant),
+				className = descendant.ClassName,
+				content = nil
+			})
+			
+			--ChangeWatcher:unwatch(descendant)
+		end)
+	end
+
+	Sync:_startPolling()
+	
+	StudioService:GetPropertyChangedSignal("ActiveScript"):Connect(function()
+		if self.connected and StudioService.ActiveScript then
+			self:requestAsync({
+				Url = "http://localhost:3000/open",
+				Method = "POST",
+				Headers = {
+					["Content-Type"] = "application/json"
+				},
+				Body = HttpService:JSONEncode({
+					path = Path.getPath(StudioService.ActiveScript),
+					className = StudioService.ActiveScript.ClassName
+				})
+			})
+		end
+	end)
+end
+
+function Sync:requestAsync(options: {[string]: any}): string | {[string]: any} | nil
+	options.Headers["Instance-ID"] = self.instanceId
+	
+	local success, response = pcall(function()
+		return HttpService:RequestAsync(options)
+	end)
+
+	return success and response or nil
+end
+
+function Sync:connect()
+	local scripts = {}
+	for name, service in pairs(services) do
+		for _, descendant in ipairs(service:GetDescendants()) do
+			if descendant:IsA("LuaSourceContainer") then
+				table.insert(scripts, {
+					path = Path.getPath(descendant), 
+					className = descendant.ClassName, 
+					content = descendant.Source
+				})	
+			end
+		end
+	end
+
+	local response = self:requestAsync({
+		Url = "http://localhost:3000/init",
+		Method = "POST",
+		Headers = {
+			["Content-Type"] = "application/json"
+		},
+		Body = HttpService:JSONEncode(scripts)
+	})
+
+	if response then
+		ChangeWatcher.changes = {}
+		self.connected = true
+		View:update()
+	end
+end
+
+function Sync:disconnect()
+	self.connected = false
+	View:update()
+end
+
+function Sync:_startPolling()
+	coroutine.wrap(function()
+		while true do
+			wait(SYNC_INTERVAL)
+			
+			if not self.connected then
+				continue
+			end
+
+			local response = self:requestAsync({
+				Url = "http://localhost:3000/update",
+				Method = "POST",
+				Headers = {
+					["Content-Type"] = "application/json"
+				},
+				Body = HttpService:JSONEncode(ChangeWatcher.changes)
+			})
+
+			if response then
+				if response.Body == "" then
+					self:disconnect()
+					continue
+				end
+				
+				local incomingChanges = HttpService:JSONDecode(response.Body)
+				
+				for _, change in ipairs(incomingChanges) do
+					if change.change == "Edited" then
+						local sourceContainer = Path.getInstanceFromPath(change.path)
+						
+						if sourceContainer and sourceContainer:IsA("LuaSourceContainer") then
+							sourceContainer.Source = change.content
+						end
+					end
+				end
+
+				ChangeWatcher.changes = {}
+			else
+				self:disconnect()
+			end
+		end
+	end)()
+end
+
+return Sync
+]]></ProtectedString>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+		</Item>
+		<Item class="Script" referent="RBX04A98418D96C4132ACD42895E13D1D1F">
+			<Properties>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<bool name="Disabled">false</bool>
+				<Content name="LinkedSource"><null></null></Content>
+				<string name="Name">Main</string>
+				<string name="ScriptGuid">{F4E4E0CD-8DA9-4135-8567-CE63B99B7B6E}</string>
+				<ProtectedString name="Source"><![CDATA[local RunService = game:GetService("RunService")
+
+local function main()
+	local Sync = require(script.Parent.Sync)
+
+	local toolbar = plugin:CreateToolbar("RBXCode")
+	Sync:init(plugin, toolbar)
+end
+
+if RunService:IsEdit() then
+	main()
+end]]></ProtectedString>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+		</Item>
+		<Item class="Folder" referent="RBXFACC5B4BE9C8467FAE4E3125E2EC68B8">
+			<Properties>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<string name="Name">Lib</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+			<Item class="ModuleScript" referent="RBXDA8C1F997ADC45329C85D75B6A78E623">
+				<Properties>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<Content name="LinkedSource"><null></null></Content>
+					<string name="Name">StudioTheme</string>
+					<string name="ScriptGuid">{225543EA-8673-4D3D-A6C3-3EA92C5CB8F3}</string>
+					<ProtectedString name="Source"><![CDATA[local syncConnections = {}
+
+local StudioTheme = {}
+
+function StudioTheme.getColor(styleGuideItem: Enum.StudioStyleGuideColor, modifier: Enum.StudioStyleGuideModifier?)
+	return settings().Studio.Theme:GetColor(styleGuideItem, modifier)
+end
+
+function StudioTheme.setColor(guiObject: GuiObject, styleGuideItem: Enum.StudioStyleGuideColor?,
+		modifier: Enum.StudioStyleGuideModifier?)
+	if guiObject:IsA("Frame") or guiObject:IsA("ScrollingFrame") then
+		guiObject.BackgroundColor3 = StudioTheme.getColor(
+			styleGuideItem or Enum.StudioStyleGuideColor.MainBackground, 
+			modifier
+		)
+	elseif guiObject:IsA("ImageButton") then
+		guiObject.BackgroundColor3 = StudioTheme.getColor(
+			styleGuideItem or Enum.StudioStyleGuideColor.Button, 
+			modifier
+		)
+		guiObject.ImageColor3 = StudioTheme.getColor(
+			styleGuideItem or Enum.StudioStyleGuideColor.Button, 
+			modifier
+		)
+	elseif guiObject:IsA("TextLabel") then
+		guiObject.TextColor3 = StudioTheme.getColor(
+			styleGuideItem or Enum.StudioStyleGuideColor.MainText, 
+			modifier
+		)
+	end
+end
+
+function StudioTheme.syncColor(guiObject: GuiObject, styleGuideItem: Enum.StudioStyleGuideColor?,
+		modifier: Enum.StudioStyleGuideModifier?)
+	StudioTheme.setColor(guiObject, styleGuideItem, modifier)
+
+	if syncConnections[guiObject] then
+		syncConnections[guiObject]:Disconnect()
+	end
+
+	syncConnections[guiObject] = settings().Studio.ThemeChanged:Connect(function()
+		StudioTheme.setColor(guiObject, styleGuideItem, modifier)
+	end)
+end
+
+function StudioTheme.syncDescendantsColor(guiObject: GuiObject)
+	StudioTheme.syncColor(guiObject)
+
+	for _, descendant in ipairs(guiObject:GetDescendants()) do
+		StudioTheme.syncColor(descendant)
+	end
+end
+
+return StudioTheme
+]]></ProtectedString>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+			</Item>
+			<Item class="ModuleScript" referent="RBX3E7639C8FB994E6BB71496E01E5DEDD7">
+				<Properties>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<Content name="LinkedSource"><null></null></Content>
+					<string name="Name">ObjectPool</string>
+					<string name="ScriptGuid">{11282F67-59F2-4C9C-A8FB-81447CDE67D7}</string>
+					<ProtectedString name="Source"><![CDATA[local MAX_COPIES_PER_POOL = 10000
+
+local pools = {}
+
+local ObjectPool = {}
+
+function ObjectPool.getObject(template)
+	local pool = pools[template]
+	
+	if not pool then
+		pools[template] = {}
+		pool = pools[template]
+	end
+	
+	if #pool > 0 then
+		return table.remove(pool, #pool), true
+	else
+		return template:Clone(), false
+	end
+end
+
+function ObjectPool.returnObject(instance, template)
+	local pool = pools[template]
+
+	if not pool then
+		pools[template] = {}
+		pool = pools[template]
+	end
+	
+	for i, descendant in ipairs(instance:GetDescendants()) do
+		if descendant:IsA("ModuleScript") then
+			descendant:Clone().Parent = instance
+			descendant:Destroy()
+		elseif descendant:IsA("Animator") then
+			for i, animTrack in ipairs(descendant:GetPlayingAnimationTracks()) do
+				animTrack:Stop()
+			end
+		end
+	end
+	
+	if #pool < MAX_COPIES_PER_POOL then
+		table.insert(pool, instance)
+		instance.Parent = nil
+	else
+		instance:Destroy()
+	end
+end
+
+function ObjectPool.clearPool(template)
+	local pool = pools[template]
+	
+	if pool then
+		for i, object in ipairs(pool) do
+			object:Destroy()
+		end
+		
+		pools[template] = nil
+	end
+end
+
+return ObjectPool
+]]></ProtectedString>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+			</Item>
+			<Item class="ModuleScript" referent="RBX93710B8DE7EB4BE48963F17E61DE2DF2">
+				<Properties>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<Content name="LinkedSource"><null></null></Content>
+					<string name="Name">Component</string>
+					<string name="ScriptGuid">{A7482721-E9C9-4D72-AD24-2F04F194BF7C}</string>
+					<ProtectedString name="Source"><![CDATA[local ObjectPool = require(script.Parent.ObjectPool)
+local Map = require(script.Parent.Map)
+local class = require(script.Parent.class)
+local styles = require(script.Parent.Parent.Styles.styles)
+
+local components = {}
+local cache = {}
+
+local inheritedProperties = {
+	BackgroundColor3 = true,
+	RichText = true,
+	TextColor3 = true,
+	Font = true,
+	TextTransparency = true,
+	TextSize = true,
+	TextScaled = true,
+	TextWrapped = true,
+	TextXAlignment = true,
+	TextYAlignment = true,
+	TextTruncate = true
+}
+
+local function applyStyle(guiObject: GuiObject, style: Style, inherited: boolean?)
+	for key, value in pairs(style) do
+		local success, err = pcall(function()
+			if not inherited or inheritedProperties[key] then
+				if typeof(value) == "function" then
+					guiObject[key] = value()
+				else
+					guiObject[key] = value
+				end
+			end
+		end)
+	end
+end
+
+local Component = class("Component")
+
+function Component.new(class: string | Instance, name: string?): Component
+	local self = Component()
+
+	if typeof(class) == "string" then
+		if not cache[class] then
+			cache[class] = Instance.new(class)
+		end
+
+		self.instance = ObjectPool.getObject(cache[class])
+		self.template = cache[class]
+	else
+		self.instance = ObjectPool.getObject(class)
+		self.template = class
+	end
+
+	self.instance.Name = name or self.instance.Name
+	self.children = {}
+	self.styles = Map.new()
+	self.connections = {}
+
+	applyStyle(self.instance, styles.default)
+
+	components[self.instance] = self
+
+	return self
+end
+
+function Component.getComponent(instance: Instance): Component
+	return components[instance]
+end
+
+function Component:addChild(component: Component)
+	if component.parent then
+		component.parent:removeChild(component)
+	end
+
+	table.insert(self.children, component)
+	component.parent = self
+	component.instance.Parent = self.instance
+
+	component:refresh()
+end
+
+function Component:removeChild(component: Component)
+	for i, child in ipairs(self.children) do
+		if child == component then
+			table.remove(self.children, i)
+			component.parent = nil
+			break
+		end
+	end
+end
+
+function Component:destroy()
+	components[self.instance] = nil
+	ObjectPool.returnObject(self.instance, self.template)
+
+	if self.parent then
+		self.parent:removeChild(self)
+	end
+
+	for k, connection in pairs(self.connections) do
+		connection:Disconnect()
+		self.connections[k] = nil
+	end
+
+	while #self.children > 0 do
+		self.children[1]:destroy()
+	end
+
+	for i, child in ipairs(self.instance:GetChildren()) do
+		if not Component.getComponent(child) then
+			child:Destroy()
+		end
+	end
+
+	self.instance = nil
+	self.template = nil
+	self.parent = nil
+	self.children = nil
+	self.styles = nil
+end
+
+function Component:addStyle(style: Style, name: string?)
+	name = name or tostring(style)
+	
+	self.styles:set(name, style)
+	self:refresh()
+	
+	if style.hover or style.pressed 
+		and not self.connections["InputBegan"] 
+		and not self.connections["InputEnded"] 
+	then
+		self:_connectInputEvents()
+	end
+end
+
+function Component:removeStyle(name: string)
+	self.styles:delete(name)
+end
+
+function Component:refresh()
+	local inheritedStyles = {}
+	local current = self.parent
+	
+	while current do
+		for i, style in ipairs(current.styles:values()) do
+			table.insert(inheritedStyles, i, style)
+		end
+		current = current.parent
+	end
+
+	self:_refresh(inheritedStyles)
+end
+
+function Component:_refresh(inheritedStyles: {Style})
+	local function applyToComponent(style, inherited)
+		applyStyle(self.instance, style, inherited)
+
+		if self.state == "Hover" and style.hover then
+			applyStyle(self.instance, style.hover)
+		elseif self.state == "Pressed" and style.pressed then
+			applyStyle(self.instance, style.pressed)
+		end
+		
+		for _, child in ipairs(self.instance:GetChildren()) do
+			if style[child.ClassName] then
+				applyStyle(child, style[child.ClassName])
+			end
+			
+			if style[child.Name] then
+				applyStyle(child, style[child.Name])
+			end
+		end
+	end
+	
+	local function applyToComponentPart(part, inheritedStyles)
+		for _, style in ipairs(inheritedStyles) do
+			applyStyle(part, style, true)
+		end
+		
+		for _, child in ipairs(part:GetChildren()) do
+			if child:IsA("GuiObject") then
+				applyToComponentPart(child, inheritedStyles)
+			end
+		end
+	end
+	
+	for _, style in ipairs(inheritedStyles) do
+		applyToComponent(style, true)
+	end
+
+	for _, style in ipairs(self.styles:values()) do
+		applyToComponent(style)
+		table.insert(inheritedStyles, style)
+	end
+	
+	for _, child in ipairs(self.instance:GetChildren()) do
+		local component = Component.getComponent(child)
+		
+		if component then
+			component:_refresh(inheritedStyles)
+		elseif child:IsA("GuiObject") then
+			applyToComponentPart(child, inheritedStyles)
+		end
+	end
+end
+
+function Component:_connectInputEvents()
+	self.connections["InputBegan"] = self.instance.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement then
+			self.state = "Hover"
+			self:refresh()
+		elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+			self.state = "Pressed"
+			self:refresh()
+		end
+	end)
+
+	self.connections["InputEnded"] = self.instance.InputEnded:Connect(function(input)
+		self.state = "Default"
+		self:refresh()
+	end)
+end
+
+export type Component = typeof(Component.new(""))
+export type Style = {[string]: any}
+
+return Component
+]]></ProtectedString>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+			</Item>
+			<Item class="ModuleScript" referent="RBXBC869F9E2E6A42DE875AE02DAEC60A5B">
+				<Properties>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<Content name="LinkedSource"><null></null></Content>
+					<string name="Name">class</string>
+					<string name="ScriptGuid">{5E0698AE-9D9A-410F-B30B-049C30E0479C}</string>
+					<ProtectedString name="Source"><![CDATA[local Class = {}
+Class.__index = function(t, k)
+	if rawget(t, "className") then 
+		return rawget(Class, k)
+	end
+end
+Class.__call = function(t, ...)
+	local instance
+	if t._parent then
+		instance = t._parent.new(...)
+	else
+		instance = {}
+	end
+	setmetatable(instance, t)
+
+	return instance
+end
+
+function Class.new(className: string): Class
+	local self = {}
+	
+	self.__index = function(t, k)
+		if rawget(self, k) then
+			return rawget(self, k)
+		else
+			local getter = rawget(self, "get" .. string.upper(string.sub(k, 1, 1)) .. string.sub(k, 2))
+
+			if getter then
+				return getter(t)
+			elseif self._parent then
+				if typeof(self._parent.__index) == "function" then
+					return self._parent.__index(t, k)
+				else
+					return self._parent[k]
+				end
+			end
+		end
+	end
+	
+	self.__newindex = function(t, k, v)
+		local setter = rawget(self, "set" .. string.upper(string.sub(k, 1, 1)) .. string.sub(k, 2))
+
+		if setter then
+			setter(t, v)
+		else
+			rawset(t, k, v)
+		end
+	end
+	
+	setmetatable(self, Class)
+	
+	self.className = className
+	
+	return self
+end
+
+function Class:extends(parent: Class): Class
+	self._parent = parent
+	
+	return self
+end
+
+export type Class = typeof(Class.new(""))
+
+return Class.new
+]]></ProtectedString>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+			</Item>
+			<Item class="ModuleScript" referent="RBX956F5C25287E418B99C8394672D5D150">
+				<Properties>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<Content name="LinkedSource"><null></null></Content>
+					<string name="Name">Map</string>
+					<string name="ScriptGuid">{35E5EDB8-D958-4835-8C24-D93E884A9B8C}</string>
+					<ProtectedString name="Source"><![CDATA[local Map = {}
+Map.__index = Map
+
+function Map.new(array: Array?): Map
+	local self = {}
+	setmetatable(self, Map)
+	
+	self._list = {} 
+	self._dictionary = {}
+	
+	if array then
+		for i, pair in ipairs(array) do
+			table.insert(self._list, pair)
+			self._dictionary[pair[1]] = pair[2]
+		end
+	end
+	
+	return self
+end
+
+function Map:get(key)
+	return self._dictionary[key]
+end
+
+function Map:set(key, value)
+	if self._dictionary[key] then
+		self:delete(key)
+	end
+	
+	table.insert(self._list, {key, value})
+	self._dictionary[key] = value
+end
+
+function Map:delete(key)
+	for i, element in ipairs(self._list) do
+		if element[1] == key then
+			table.remove(self._list, i)
+			break
+		end
+	end
+	
+	self._dictionary[key] = nil
+end
+
+function Map:keys()
+	local keys = {}
+	
+	for i, element in ipairs(self._list) do
+		table.insert(keys, element[1])
+	end
+	
+	return keys
+end
+
+function Map:values()
+	local values = {}
+	
+	for i, element in ipairs(self._list) do
+		table.insert(values, element[2])
+	end
+	
+	return values
+end
+
+function Map:size()
+	return #self._list
+end
+
+export type Map = typeof(Map.new({}))
+type Array = {any}
+
+return Map
+]]></ProtectedString>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+			</Item>
+		</Item>
+		<Item class="Folder" referent="RBX22DFC6B48A7F45DC8599FC2417BB5F2F">
+			<Properties>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<string name="Name">Components</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+			<Item class="ModuleScript" referent="RBXB399DB6594184B5999E48D22C75C8D35">
+				<Properties>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<Content name="LinkedSource"><null></null></Content>
+					<string name="Name">TextButton</string>
+					<string name="ScriptGuid">{4833208A-4F12-472C-B9CB-1ACE40E015FB}</string>
+					<ProtectedString name="Source"><![CDATA[local Component = require(script.Parent.Parent.Lib.Component)
+local class = require(script.Parent.Parent.Lib.class)
+
+local TextButton = class("TextButton"):extends(Component)
+
+function TextButton.new(name: string, options: {[string]: any?})
+	options = options or {}
+	
+	local self = TextButton(script.GuiObject, name)
+	self.text = options.text or "Label"
+	
+	return self
+end
+
+function TextButton:getText(): string
+	return self.instance.TextLabel.Text
+end
+
+function TextButton:setText(text: string)
+	self.instance.TextLabel.Text = text
+end
+
+export type TextButton = typeof(TextButton.new(""))
+
+return TextButton
+]]></ProtectedString>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+				<Item class="ImageButton" referent="RBX0D275BCC63FF49F192B361F5D5C39286">
+					<Properties>
+						<bool name="Active">false</bool>
+						<Vector2 name="AnchorPoint">
+							<X>0</X>
+							<Y>0</Y>
+						</Vector2>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<bool name="AutoButtonColor">false</bool>
+						<bool name="AutoLocalize">true</bool>
+						<token name="AutomaticSize">0</token>
+						<Color3 name="BackgroundColor3">
+							<R>1</R>
+							<G>1</G>
+							<B>1</B>
+						</Color3>
+						<float name="BackgroundTransparency">0</float>
+						<Color3 name="BorderColor3">
+							<R>0.105882362</R>
+							<G>0.164705887</G>
+							<B>0.207843155</B>
+						</Color3>
+						<token name="BorderMode">0</token>
+						<int name="BorderSizePixel">1</int>
+						<bool name="ClipsDescendants">false</bool>
+						<bool name="Draggable">false</bool>
+						<Content name="HoverImage"><null></null></Content>
+						<Content name="Image"><null></null></Content>
+						<Color3 name="ImageColor3">
+							<R>1</R>
+							<G>1</G>
+							<B>1</B>
+						</Color3>
+						<Vector2 name="ImageRectOffset">
+							<X>0</X>
+							<Y>0</Y>
+						</Vector2>
+						<Vector2 name="ImageRectSize">
+							<X>0</X>
+							<Y>0</Y>
+						</Vector2>
+						<float name="ImageTransparency">0</float>
+						<int name="LayoutOrder">0</int>
+						<bool name="Modal">false</bool>
+						<string name="Name">GuiObject</string>
+						<Ref name="NextSelectionDown">null</Ref>
+						<Ref name="NextSelectionLeft">null</Ref>
+						<Ref name="NextSelectionRight">null</Ref>
+						<Ref name="NextSelectionUp">null</Ref>
+						<UDim2 name="Position">
+							<XS>0</XS>
+							<XO>0</XO>
+							<YS>0</YS>
+							<YO>0</YO>
+						</UDim2>
+						<Content name="PressedImage"><null></null></Content>
+						<Ref name="RootLocalizationTable">null</Ref>
+						<float name="Rotation">0</float>
+						<token name="ScaleType">0</token>
+						<bool name="Selectable">false</bool>
+						<bool name="Selected">false</bool>
+						<Ref name="SelectionImageObject">null</Ref>
+						<UDim2 name="Size">
+							<XS>0</XS>
+							<XO>80</XO>
+							<YS>0</YS>
+							<YO>30</YO>
+						</UDim2>
+						<token name="SizeConstraint">0</token>
+						<Rect2D name="SliceCenter">
+							<min>
+								<X>0</X>
+								<Y>0</Y>
+							</min>
+							<max>
+								<X>0</X>
+								<Y>0</Y>
+							</max>
+						</Rect2D>
+						<float name="SliceScale">1</float>
+						<int64 name="SourceAssetId">-1</int64>
+						<token name="Style">0</token>
+						<BinaryString name="Tags"></BinaryString>
+						<UDim2 name="TileSize">
+							<XS>1</XS>
+							<XO>0</XO>
+							<YS>1</YS>
+							<YO>0</YO>
+						</UDim2>
+						<bool name="Visible">true</bool>
+						<int name="ZIndex">1</int>
+					</Properties>
+					<Item class="TextLabel" referent="RBXEE4FCBA1172E4C8ABBBA75D36B1A9955">
+						<Properties>
+							<bool name="Active">false</bool>
+							<Vector2 name="AnchorPoint">
+								<X>0.5</X>
+								<Y>0.5</Y>
+							</Vector2>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<bool name="AutoLocalize">true</bool>
+							<token name="AutomaticSize">0</token>
+							<Color3 name="BackgroundColor3">
+								<R>1</R>
+								<G>1</G>
+								<B>1</B>
+							</Color3>
+							<float name="BackgroundTransparency">1</float>
+							<Color3 name="BorderColor3">
+								<R>0.105882362</R>
+								<G>0.164705887</G>
+								<B>0.207843155</B>
+							</Color3>
+							<token name="BorderMode">0</token>
+							<int name="BorderSizePixel">1</int>
+							<bool name="ClipsDescendants">false</bool>
+							<bool name="Draggable">false</bool>
+							<token name="Font">3</token>
+							<int name="LayoutOrder">0</int>
+							<float name="LineHeight">1</float>
+							<int name="MaxVisibleGraphemes">-1</int>
+							<string name="Name">TextLabel</string>
+							<Ref name="NextSelectionDown">null</Ref>
+							<Ref name="NextSelectionLeft">null</Ref>
+							<Ref name="NextSelectionRight">null</Ref>
+							<Ref name="NextSelectionUp">null</Ref>
+							<UDim2 name="Position">
+								<XS>0.5</XS>
+								<XO>0</XO>
+								<YS>0.5</YS>
+								<YO>0</YO>
+							</UDim2>
+							<bool name="RichText">false</bool>
+							<Ref name="RootLocalizationTable">null</Ref>
+							<float name="Rotation">0</float>
+							<bool name="Selectable">false</bool>
+							<Ref name="SelectionImageObject">null</Ref>
+							<UDim2 name="Size">
+								<XS>1</XS>
+								<XO>0</XO>
+								<YS>1</YS>
+								<YO>0</YO>
+							</UDim2>
+							<token name="SizeConstraint">0</token>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+							<string name="Text">Label</string>
+							<Color3 name="TextColor3">
+								<R>0</R>
+								<G>0</G>
+								<B>0</B>
+							</Color3>
+							<bool name="TextScaled">false</bool>
+							<float name="TextSize">14</float>
+							<Color3 name="TextStrokeColor3">
+								<R>0</R>
+								<G>0</G>
+								<B>0</B>
+							</Color3>
+							<float name="TextStrokeTransparency">1</float>
+							<float name="TextTransparency">0</float>
+							<token name="TextTruncate">0</token>
+							<bool name="TextWrapped">false</bool>
+							<token name="TextXAlignment">2</token>
+							<token name="TextYAlignment">1</token>
+							<bool name="Visible">true</bool>
+							<int name="ZIndex">1</int>
+						</Properties>
+					</Item>
+					<Item class="UICorner" referent="RBXB8329C374AF74EA7A75053B9F7C35A69">
+						<Properties>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<UDim name="CornerRadius">
+								<S>0.150000006</S>
+								<O>0</O>
+							</UDim>
+							<string name="Name">UICorner</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+						</Properties>
+					</Item>
+					<Item class="UIStroke" referent="RBXA38290BD2FDF4C49ABA251725A18057A">
+						<Properties>
+							<token name="ApplyStrokeMode">1</token>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<Color3 name="Color">
+								<R>0</R>
+								<G>0</G>
+								<B>0</B>
+							</Color3>
+							<bool name="Enabled">true</bool>
+							<token name="LineJoinMode">0</token>
+							<string name="Name">UIStroke</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+							<float name="Thickness">1</float>
+							<float name="Transparency">0</float>
+						</Properties>
+					</Item>
+				</Item>
+			</Item>
+		</Item>
+		<Item class="ModuleScript" referent="RBX6A6BF19A20FB4C28AF6F63B77DCDADBD">
+			<Properties>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<Content name="LinkedSource"><null></null></Content>
+				<string name="Name">ChangeWatcher</string>
+				<string name="ScriptGuid">{574EB96E-1335-4E0F-BD2F-A15B326D1D39}</string>
+				<ProtectedString name="Source"><![CDATA[local Path = require(script.Parent.Path)
+
+local ChangeWatcher = {
+	changes = {},
+	connections = {}
+}
+
+function ChangeWatcher:watch(instance: Instance)
+	local currentPath = Path.getPath(instance)
+	self.connections[instance] = {}
+
+	self.connections[instance]["Renamed"] = instance:GetPropertyChangedSignal("Name"):Connect(function()
+		local newPath = Path.getPath(instance)
+
+		if instance:IsA("LuaSourceContainer") or instance:FindFirstChildWhichIsA("LuaSourceContainer", true) then
+			local change = {
+				change = "Renamed",
+				path = currentPath,
+				newPath = newPath,
+				className = instance.ClassName
+			}
+
+			if instance:IsA("LuaSourceContainer") then
+				change.content = instance.Source
+			end
+
+			table.insert(self.changes, change)
+		end
+
+		currentPath = newPath
+	end)
+
+	self.connections[instance]["Moved"] = instance.AncestryChanged:Connect(function(child, parent)
+		local newPath = Path.getPath(instance)
+
+		if (instance:IsA("LuaSourceContainer") 
+			or instance:FindFirstChildWhichIsA("LuaSourceContainer", true))
+			and instance == child
+			and string.split(currentPath, "/")[1] == string.split(newPath, "/")[1]
+			and newPath ~= currentPath
+		then
+			local change = {
+				change = "Moved",
+				path = currentPath,
+				newPath = newPath,
+				className = instance.ClassName
+			}
+
+			if instance:IsA("LuaSourceContainer") then
+				change.content = instance.Source
+			end
+
+			table.insert(self.changes, change)
+		end
+
+		currentPath = newPath
+	end)
+
+	if instance:IsA("LuaSourceContainer") then
+		self.connections[instance]["Edited"] = instance:GetPropertyChangedSignal("Source"):Connect(function()
+			table.insert(self.changes, {
+				change = "Edited",
+				path = Path.getPath(instance),
+				className = instance.ClassName,
+				content = instance.Source
+			})
+		end)
+	end
+end
+
+function ChangeWatcher:unwatch(instance: Instance)
+	if not self.connections[instance] then return end
+
+	for _, connection in pairs(self.connections[instance]) do
+		connection:Disconnect()
+	end
+
+	self.connections[instance] = nil
+end
+
+return ChangeWatcher
+]]></ProtectedString>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+		</Item>
+		<Item class="ModuleScript" referent="RBXC601191A8CEC4ADDAC17EFED1C6A8AD1">
+			<Properties>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<Content name="LinkedSource"><null></null></Content>
+				<string name="Name">Path</string>
+				<string name="ScriptGuid">{EBFE0B3E-0237-45B7-90D8-03F5D68724E2}</string>
+				<ProtectedString name="Source"><![CDATA[local Path = {}
+
+function Path.getPath(instance: Instance): string
+	return string.gsub(instance:GetFullName(), "%.", "/")
+end
+
+function Path.getInstanceFromPath(path: string): Instance
+	local endPos = (string.find(path, "%.") or #path + 1) - 1
+	path = string.sub(path, 1, endPos)
+	local items = string.split(path, "\\")
+	table.remove(items, 1)
+	local serviceName = table.remove(items, 1)
+	local current = game:GetService(serviceName)
+
+	for _, item in ipairs(items) do
+		if current and current:FindFirstChild(item) then
+			current = current[item]
+		end
+	end
+	
+	if current and current.Name ~= items[#items] and items[#items] ~= "init" then
+		current = nil
+	end
+
+	return current
+end
+
+return Path
+]]></ProtectedString>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+		</Item>
+		<Item class="Folder" referent="RBX42B13E2C5CD741A7BA86B28043680482">
+			<Properties>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<string name="Name">Styles</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+			<Item class="ModuleScript" referent="RBX353FA32133DC4553A1E7AA374973CA7D">
+				<Properties>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<Content name="LinkedSource"><null></null></Content>
+					<string name="Name">styles</string>
+					<string name="ScriptGuid">{522F13FB-2901-43AE-9A3B-F821E351D425}</string>
+					<ProtectedString name="Source"><![CDATA[local StudioTheme = require(script.Parent.Parent.Lib.StudioTheme)
+
+local function themeColor(styleGuideItem: Enum.StudioStyleGuideColor, modifier: Enum.StudioStyleGuideModifier?)
+	return function()
+		return StudioTheme.getColor(styleGuideItem, modifier)
+	end
+end
+
+local styles = {
+	default = {
+		BackgroundTransparency = 0
+	},
+
+	mainFrame = {
+		BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.MainBackground),
+		BorderColor3 = themeColor(Enum.StudioStyleGuideColor.Border),
+		BorderSizePixel = 1,
+
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+		Size = UDim2.new(1, 0, 1, -2)
+	},
+
+	label = {
+		BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.Tab),
+		BackgroundTransparency = 1,
+
+		Font = Enum.Font.SourceSans,
+		TextColor3 = themeColor(Enum.StudioStyleGuideColor.MainText),
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd
+	},
+	
+	button = {
+		BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.Button),
+		
+		TextColor3 = themeColor(Enum.StudioStyleGuideColor.MainText),
+		
+		hover = {
+			BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.Button, Enum.StudioStyleGuideModifier.Hover),
+		},
+		
+		pressed = {
+			BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.Button, Enum.StudioStyleGuideModifier.Pressed),
+		},
+		
+		UIStroke = {
+			Color = themeColor(Enum.StudioStyleGuideColor.ButtonBorder)
+		}
+	},
+	
+	connected = {
+		TextColor3 = Color3.fromRGB(50, 222, 50)
+	}
+}
+
+return styles
+]]></ProtectedString>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+			</Item>
+		</Item>
+		<Item class="ModuleScript" referent="RBX6E0E42CD96E54D59A43BCED659146982">
+			<Properties>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<Content name="LinkedSource"><null></null></Content>
+				<string name="Name">View</string>
+				<string name="ScriptGuid">{86D1C01B-D173-42B3-B167-3FE6776B3A0F}</string>
+				<ProtectedString name="Source"><![CDATA[local Component = require(script.Parent.Lib.Component)
+local TextButton = require(script.Parent.Components.TextButton)
+local styles = require(script.Parent.Styles.styles)
+
+local widgetInfo = DockWidgetPluginGuiInfo.new(
+	Enum.InitialDockState.Left, false, false,
+	200, 200, 150, 150
+)
+
+local controller
+local plugin
+
+local View = {
+	button = nil,
+	widget = nil,
+}
+
+function View:init(_controller, _plugin: Plugin, _toolbar: PluginToolbar)
+	controller = _controller
+	plugin = _plugin
+
+	self:createButton(_toolbar)
+	self:createWidget()
+end
+
+function View:createButton(toolbar: PluginToolbar)
+	self.button = toolbar:CreateButton("Open", "Open RBXCode", "", "Open")
+	self.button.ClickableWhenViewportHidden = true
+
+	if self.widget then
+		self.button:SetActive(self.widget.Enabled)
+	end
+
+	self.button.Click:Connect(function()
+		self.widget.Enabled = not self.widget.Enabled
+		self.button:SetActive(self.widget.Enabled)
+	end)
+end
+
+function View:createWidget()
+	self.widget = plugin:CreateDockWidgetPluginGui("RBXCode", widgetInfo)
+	self.widget.Title = "RBXCode"
+
+	if self.button then
+		self.button:SetActive(self.widget.Enabled)
+	end
+
+	self.widget:GetPropertyChangedSignal("Enabled"):Connect(function()
+		self.button:SetActive(self.widget.Enabled)
+	end)
+
+	local frame = Component.new("Frame")
+	frame:addStyle(styles.mainFrame, "mainFrame")
+	frame.instance.Parent = self.widget
+	
+	local connectButton = TextButton.new("ConnectButton", {text = "Connect"})
+	connectButton:addStyle(styles.button, "button")
+	connectButton.instance.AnchorPoint = Vector2.new(0.5, 0.5)
+	connectButton.instance.Position = UDim2.new(0.5, 0, 0.5, 0)
+	frame:addChild(connectButton)
+	
+	connectButton.instance.MouseButton1Click:Connect(function()
+		if not controller.connected then
+			controller:connect()
+		else
+			controller:disconnect()
+		end
+	end)
+	
+	settings().Studio.ThemeChanged:Connect(function()
+		frame:refresh()
+	end)
+end
+
+function View:update()
+	local connectButton = Component.getComponent(self.widget.Frame.ConnectButton)
+
+	if controller.connected then
+		connectButton.text = "Connected"
+		connectButton:addStyle(styles.connected, "connected")
+	else
+		connectButton.text = "Connect"
+		connectButton:removeStyle("connected")
+	end
+end
+
+
+return View
+
+]]></ProtectedString>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+		</Item>
+	</Item>
+</roblox>

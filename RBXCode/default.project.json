@@ -1,0 +1,66 @@
+{
+    "name": "Baseplate",
+    "tree": {
+        "$className": "DataModel",
+
+        "Workspace": {
+            "$className": "Workspace",
+            "$path": "game/Workspace",
+            "$ignoreUnknownInstances": true
+        },
+
+        "ReplicatedFirst": {
+            "$className": "ReplicatedFirst",
+            "$path": "game/ReplicatedFirst",
+            "$ignoreUnknownInstances": true
+        },
+        
+        "ReplicatedStorage": {
+            "$className": "ReplicatedStorage",
+            "$path": "game/ReplicatedStorage",
+            "$ignoreUnknownInstances": true
+        },
+
+        "ServerScriptService": {
+            "$className": "ServerScriptService",
+            "$path": "game/ServerScriptService",
+            "$ignoreUnknownInstances": true
+        },
+
+        "ServerStorage": {
+            "$className": "ServerStorage",
+            "$path": "game/ServerStorage",
+            "$ignoreUnknownInstances": true
+        },
+
+        "StarterPack": {
+            "$className": "StarterPack",
+            "$path": "game/StarterPack",
+            "$ignoreUnknownInstances": true
+        },
+
+        "StarterGui": {
+            "$className": "StarterGui",
+            "$path": "game/StarterGui",
+            "$ignoreUnknownInstances": true
+        },
+
+        "StarterPlayer": {
+            "$className": "StarterPlayer",
+            "$path": "game/StarterPlayer",
+            "$ignoreUnknownInstances": true,
+
+            "StarterPlayerScripts": {
+                "$className": "StarterPlayerScripts",
+                "$path": "game/StarterPlayer/StarterPlayerScripts",
+                "$ignoreUnknownInstances": true
+            }
+        },
+
+        "PlayerScripts": {
+            "$className": "PlayerScripts",
+            "$path": "game/StarterPlayer/StarterPlayerScripts",
+            "$ignoreUnknownInstances": true
+        }
+    }
+}
