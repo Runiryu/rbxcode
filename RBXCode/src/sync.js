@@ -252,8 +252,15 @@ export async function update(incomingChanges) {
 
 export function open(file) {
   const extension = getExtensionFromClass(file.className);
+  let targetPath;
 
-  exec(`code -g ./game/${file.path}${extension}:1 .`, (error, stdout, stderr) => {
+  if (fs.existsSync(`game/${file.path}/init${extension}`)) {
+    targetPath = `./game/${file.path}/init${extension}`;
+  } else {
+    targetPath = `./game/${file.path}${extension}`;
+  }
+  
+  exec(`code -g ${targetPath}:1 .`, (error, stdout, stderr) => {
     if (error) {
       console.error(error);
     }
