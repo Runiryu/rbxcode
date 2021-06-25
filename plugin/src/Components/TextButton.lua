@@ -13,11 +13,11 @@ function TextButton.new(name: string, options: {[string]: any?})
 end
 
 function TextButton:getText(): string
-	return self.instance.TextLabel.Text
+	return self.instance.Text
 end
 
 function TextButton:setText(text: string)
-	self.instance.TextLabel.Text = text
+	self.instance.Text = text
 end
 
 export type TextButton = typeof(TextButton.new(""))

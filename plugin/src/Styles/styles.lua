@@ -31,10 +31,31 @@ local styles = {
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextTruncate = Enum.TextTruncate.AtEnd
 	},
+
+	input = {
+		BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.InputFieldBackground),
+		TextColor3 = themeColor(Enum.StudioStyleGuideColor.MainText),
+		PlaceholderColor3 = themeColor(Enum.StudioStyleGuideColor.MainText, Enum.StudioStyleGuideModifier.Disabled),
+
+		hover = {
+			UIStroke = {
+				Color = themeColor(Enum.StudioStyleGuideColor.InputFieldBorder, Enum.StudioStyleGuideModifier.Hover)
+			}
+		},
+
+		selected = {
+			UIStroke = {
+				Color = themeColor(Enum.StudioStyleGuideColor.InputFieldBorder, Enum.StudioStyleGuideModifier.Selected)
+			}
+		},
+
+		UIStroke = {
+			Color = themeColor(Enum.StudioStyleGuideColor.InputFieldBorder)
+		}
+	},
 	
 	button = {
 		BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.Button),
-		
 		TextColor3 = themeColor(Enum.StudioStyleGuideColor.MainText),
 		
 		hover = {
@@ -51,7 +72,8 @@ local styles = {
 	},
 	
 	connected = {
-		TextColor3 = Color3.fromRGB(50, 222, 50)
+		BackgroundColor3 = Color3.fromRGB(50, 200, 50),
+		TextColor3 = Color3.fromRGB(27, 27, 27)
 	}
 }
 

@@ -125,7 +125,7 @@ function Component:addStyle(style: Style, name: string?)
 	self.styles:set(name, style)
 	self:refresh()
 	
-	if style.hover or style.pressed 
+	if (style.hover or style.pressed) 
 		and not self.connections["InputBegan"] 
 		and not self.connections["InputEnded"] 
 	then
@@ -135,6 +135,7 @@ end
 
 function Component:removeStyle(name: string)
 	self.styles:delete(name)
+	self:refresh()
 end
 
 function Component:refresh()
@@ -168,6 +169,12 @@ function Component:_refresh(inheritedStyles: {Style})
 			
 			if style[child.Name] then
 				applyStyle(child, style[child.Name])
+			end
+
+			if self.state == "Hover" and style.hover and style.hover[child.ClassName] then
+				applyStyle(child, style.hover[child.ClassName])
+			elseif self.state == "Pressed" and style.pressed and style.pressed[child.ClassName] then
+				applyStyle(child, style.pressed[child.ClassName])
 			end
 		end
 	end

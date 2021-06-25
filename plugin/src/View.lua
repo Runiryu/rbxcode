@@ -1,4 +1,5 @@
 local Component = require(script.Parent.Lib.Component)
+local TextBox = require(script.Parent.Components.TextBox)
 local TextButton = require(script.Parent.Components.TextButton)
 local styles = require(script.Parent.Styles.styles)
 
@@ -52,16 +53,28 @@ function View:createWidget()
 	local frame = Component.new("Frame")
 	frame:addStyle(styles.mainFrame, "mainFrame")
 	frame.instance.Parent = self.widget
+
+	local portTextBox = TextBox.new("PortTextBox")
+	portTextBox:addStyle(styles.input, "input")
+	portTextBox.instance.AnchorPoint = Vector2.new(0, 0)
+	portTextBox.instance.Size = UDim2.new(1, -110, 0, 30)
+	portTextBox.instance.Position = UDim2.new(0, 10, 0, 10)
+	portTextBox.text = plugin:GetSetting("Port")
+	frame:addChild(portTextBox)
 	
 	local connectButton = TextButton.new("ConnectButton", {text = "Connect"})
 	connectButton:addStyle(styles.button, "button")
-	connectButton.instance.AnchorPoint = Vector2.new(0.5, 0.5)
-	connectButton.instance.Position = UDim2.new(0.5, 0, 0.5, 0)
+	connectButton.instance.AnchorPoint = Vector2.new(1, 0)
+	connectButton.instance.Position = UDim2.new(1, -10, 0, 10)
 	frame:addChild(connectButton)
 	
 	connectButton.instance.MouseButton1Click:Connect(function()
 		if not controller.connected then
-			controller:connect()
+			local port = tonumber(portTextBox.text)
+			if port then
+				controller:connect(port)
+				plugin:SetSetting("Port", port)
+			end
 		else
 			controller:disconnect()
 		end

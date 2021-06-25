@@ -32,7 +32,7 @@ function ObjectPool.returnObject(instance, template)
 			descendant:Clone().Parent = instance
 			descendant:Destroy()
 		elseif descendant:IsA("Animator") then
-			for i, animTrack in ipairs(descendant:GetPlayingAnimationTracks()) do
+			for j, animTrack in ipairs(descendant:GetPlayingAnimationTracks()) do
 				animTrack:Stop()
 			end
 		end

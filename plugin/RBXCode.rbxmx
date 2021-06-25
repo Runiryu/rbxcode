@@ -1,14 +1,14 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Folder" referent="RBXDF96C211C4B84D92BCF82E4B324F974D">
+	<Item class="Folder" referent="RBX9577B76CCC1F424A8E114116C7144184">
 		<Properties>
 			<BinaryString name="AttributesSerialize"></BinaryString>
 			<string name="Name">RBXCode</string>
 			<int64 name="SourceAssetId">-1</int64>
 			<BinaryString name="Tags"></BinaryString>
 		</Properties>
-		<Item class="ModuleScript" referent="RBXB1911E38721B40829BE8D0BC1FFAC370">
+		<Item class="ModuleScript" referent="RBX538C1BD8DD2345BA91093312BD39547D">
 			<Properties>
 				<BinaryString name="AttributesSerialize"></BinaryString>
 				<Content name="LinkedSource"><null></null></Content>
@@ -37,12 +37,17 @@ local plugin
 
 local Sync = {
 	connected = false,
+	port = 3000,
 	instanceId = HttpService:GenerateGUID(false)
 }
 
 function Sync:init(_plugin: Plugin, _toolbar: PluginToolbar)
 	plugin = _plugin
 	
+	if not plugin:GetSetting("Port") then
+		plugin:SetSetting("Port", 3000)
+	end
+
 	View:init(self, _plugin, _toolbar)
 	
 	for name, service in pairs(services) do
@@ -84,7 +89,7 @@ function Sync:init(_plugin: Plugin, _toolbar: PluginToolbar)
 	StudioService:GetPropertyChangedSignal("ActiveScript"):Connect(function()
 		if self.connected and StudioService.ActiveScript then
 			self:requestAsync({
-				Url = "http://localhost:3000/open",
+				Url = "http://localhost:" .. self.port .. "/open",
 				Method = "POST",
 				Headers = {
 					["Content-Type"] = "application/json"
@@ -108,7 +113,7 @@ function Sync:requestAsync(options: {[string]: any}): string | {[string]: any} |
 	return success and response or nil
 end
 
-function Sync:connect()
+function Sync:connect(port: number)
 	local scripts = {}
 	for name, service in pairs(services) do
 		for _, descendant in ipairs(service:GetDescendants()) do
@@ -123,7 +128,7 @@ function Sync:connect()
 	end
 
 	local response = self:requestAsync({
-		Url = "http://localhost:3000/init",
+		Url = "http://localhost:" .. port .. "/init",
 		Method = "POST",
 		Headers = {
 			["Content-Type"] = "application/json"
@@ -134,6 +139,7 @@ function Sync:connect()
 	if response then
 		ChangeWatcher.changes = {}
 		self.connected = true
+		self.port = port
 		View:update()
 	end
 end
@@ -153,7 +159,7 @@ function Sync:_startPolling()
 			end
 
 			local response = self:requestAsync({
-				Url = "http://localhost:3000/update",
+				Url = "http://localhost:" .. self.port .. "/update",
 				Method = "POST",
 				Headers = {
 					["Content-Type"] = "application/json"
@@ -174,6 +180,12 @@ function Sync:_startPolling()
 						local sourceContainer = Path.getInstanceFromPath(change.path)
 						
 						if sourceContainer and sourceContainer:IsA("LuaSourceContainer") then
+							if ChangeWatcher.ignored[sourceContainer] then
+								ChangeWatcher.ignored[sourceContainer] += 1
+							else
+								ChangeWatcher.ignored[sourceContainer] = 1
+							end
+							
 							sourceContainer.Source = change.content
 						end
 					end
@@ -193,7 +205,7 @@ return Sync
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="Script" referent="RBX04A98418D96C4132ACD42895E13D1D1F">
+		<Item class="Script" referent="RBXB7C075CE2442441F9A08E12B832DDABB">
 			<Properties>
 				<BinaryString name="AttributesSerialize"></BinaryString>
 				<bool name="Disabled">false</bool>
@@ -216,14 +228,14 @@ end]]></ProtectedString>
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="Folder" referent="RBXFACC5B4BE9C8467FAE4E3125E2EC68B8">
+		<Item class="Folder" referent="RBXA76194C82DF64009A3F158A203929CAD">
 			<Properties>
 				<BinaryString name="AttributesSerialize"></BinaryString>
 				<string name="Name">Lib</string>
 				<int64 name="SourceAssetId">-1</int64>
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
-			<Item class="ModuleScript" referent="RBXDA8C1F997ADC45329C85D75B6A78E623">
+			<Item class="ModuleScript" referent="RBX47665055BF674C2481A6274351F51596">
 				<Properties>
 					<BinaryString name="AttributesSerialize"></BinaryString>
 					<Content name="LinkedSource"><null></null></Content>
@@ -288,7 +300,7 @@ return StudioTheme
 					<BinaryString name="Tags"></BinaryString>
 				</Properties>
 			</Item>
-			<Item class="ModuleScript" referent="RBX3E7639C8FB994E6BB71496E01E5DEDD7">
+			<Item class="ModuleScript" referent="RBXDAFBDAC36ED8432E80A41E1FBC1C5FB7">
 				<Properties>
 					<BinaryString name="AttributesSerialize"></BinaryString>
 					<Content name="LinkedSource"><null></null></Content>
@@ -328,7 +340,7 @@ function ObjectPool.returnObject(instance, template)
 			descendant:Clone().Parent = instance
 			descendant:Destroy()
 		elseif descendant:IsA("Animator") then
-			for i, animTrack in ipairs(descendant:GetPlayingAnimationTracks()) do
+			for j, animTrack in ipairs(descendant:GetPlayingAnimationTracks()) do
 				animTrack:Stop()
 			end
 		end
@@ -360,7 +372,7 @@ return ObjectPool
 					<BinaryString name="Tags"></BinaryString>
 				</Properties>
 			</Item>
-			<Item class="ModuleScript" referent="RBX93710B8DE7EB4BE48963F17E61DE2DF2">
+			<Item class="ModuleScript" referent="RBXAC0B9A062D184E468CB57BB9EBDC8E4D">
 				<Properties>
 					<BinaryString name="AttributesSerialize"></BinaryString>
 					<Content name="LinkedSource"><null></null></Content>
@@ -493,7 +505,7 @@ function Component:addStyle(style: Style, name: string?)
 	self.styles:set(name, style)
 	self:refresh()
 	
-	if style.hover or style.pressed 
+	if (style.hover or style.pressed) 
 		and not self.connections["InputBegan"] 
 		and not self.connections["InputEnded"] 
 	then
@@ -503,6 +515,7 @@ end
 
 function Component:removeStyle(name: string)
 	self.styles:delete(name)
+	self:refresh()
 end
 
 function Component:refresh()
@@ -536,6 +549,12 @@ function Component:_refresh(inheritedStyles: {Style})
 			
 			if style[child.Name] then
 				applyStyle(child, style[child.Name])
+			end
+
+			if self.state == "Hover" and style.hover and style.hover[child.ClassName] then
+				applyStyle(child, style.hover[child.ClassName])
+			elseif self.state == "Pressed" and style.pressed and style.pressed[child.ClassName] then
+				applyStyle(child, style.pressed[child.ClassName])
 			end
 		end
 	end
@@ -598,7 +617,7 @@ return Component
 					<BinaryString name="Tags"></BinaryString>
 				</Properties>
 			</Item>
-			<Item class="ModuleScript" referent="RBXBC869F9E2E6A42DE875AE02DAEC60A5B">
+			<Item class="ModuleScript" referent="RBX7A404E86CAFA4EDEBC39CF8D8486DF51">
 				<Properties>
 					<BinaryString name="AttributesSerialize"></BinaryString>
 					<Content name="LinkedSource"><null></null></Content>
@@ -674,7 +693,7 @@ return Class.new
 					<BinaryString name="Tags"></BinaryString>
 				</Properties>
 			</Item>
-			<Item class="ModuleScript" referent="RBX956F5C25287E418B99C8394672D5D150">
+			<Item class="ModuleScript" referent="RBX39CAC5F81F2B4CEA9AADB7B28044F8C3">
 				<Properties>
 					<BinaryString name="AttributesSerialize"></BinaryString>
 					<Content name="LinkedSource"><null></null></Content>
@@ -758,14 +777,14 @@ return Map
 				</Properties>
 			</Item>
 		</Item>
-		<Item class="Folder" referent="RBX22DFC6B48A7F45DC8599FC2417BB5F2F">
+		<Item class="Folder" referent="RBXF64BA90683E04BA2B2EDD90D4569F026">
 			<Properties>
 				<BinaryString name="AttributesSerialize"></BinaryString>
 				<string name="Name">Components</string>
 				<int64 name="SourceAssetId">-1</int64>
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
-			<Item class="ModuleScript" referent="RBXB399DB6594184B5999E48D22C75C8D35">
+			<Item class="ModuleScript" referent="RBXCAB7DD51655D4124B00D15F27F2D91D4">
 				<Properties>
 					<BinaryString name="AttributesSerialize"></BinaryString>
 					<Content name="LinkedSource"><null></null></Content>
@@ -786,11 +805,11 @@ function TextButton.new(name: string, options: {[string]: any?})
 end
 
 function TextButton:getText(): string
-	return self.instance.TextLabel.Text
+	return self.instance.Text
 end
 
 function TextButton:setText(text: string)
-	self.instance.TextLabel.Text = text
+	self.instance.Text = text
 end
 
 export type TextButton = typeof(TextButton.new(""))
@@ -800,7 +819,7 @@ return TextButton
 					<int64 name="SourceAssetId">-1</int64>
 					<BinaryString name="Tags"></BinaryString>
 				</Properties>
-				<Item class="ImageButton" referent="RBX0D275BCC63FF49F192B361F5D5C39286">
+				<Item class="TextButton" referent="RBXD376A8636987484891AFB2E142CBD656">
 					<Properties>
 						<bool name="Active">false</bool>
 						<Vector2 name="AnchorPoint">
@@ -826,23 +845,10 @@ return TextButton
 						<int name="BorderSizePixel">1</int>
 						<bool name="ClipsDescendants">false</bool>
 						<bool name="Draggable">false</bool>
-						<Content name="HoverImage"><null></null></Content>
-						<Content name="Image"><null></null></Content>
-						<Color3 name="ImageColor3">
-							<R>1</R>
-							<G>1</G>
-							<B>1</B>
-						</Color3>
-						<Vector2 name="ImageRectOffset">
-							<X>0</X>
-							<Y>0</Y>
-						</Vector2>
-						<Vector2 name="ImageRectSize">
-							<X>0</X>
-							<Y>0</Y>
-						</Vector2>
-						<float name="ImageTransparency">0</float>
+						<token name="Font">3</token>
 						<int name="LayoutOrder">0</int>
+						<float name="LineHeight">1</float>
+						<int name="MaxVisibleGraphemes">-1</int>
 						<bool name="Modal">false</bool>
 						<string name="Name">GuiObject</string>
 						<Ref name="NextSelectionDown">null</Ref>
@@ -851,14 +857,13 @@ return TextButton
 						<Ref name="NextSelectionUp">null</Ref>
 						<UDim2 name="Position">
 							<XS>0</XS>
-							<XO>0</XO>
+							<XO>100</XO>
 							<YS>0</YS>
-							<YO>0</YO>
+							<YO>10</YO>
 						</UDim2>
-						<Content name="PressedImage"><null></null></Content>
+						<bool name="RichText">false</bool>
 						<Ref name="RootLocalizationTable">null</Ref>
 						<float name="Rotation">0</float>
-						<token name="ScaleType">0</token>
 						<bool name="Selectable">false</bool>
 						<bool name="Selected">false</bool>
 						<Ref name="SelectionImageObject">null</Ref>
@@ -869,107 +874,32 @@ return TextButton
 							<YO>30</YO>
 						</UDim2>
 						<token name="SizeConstraint">0</token>
-						<Rect2D name="SliceCenter">
-							<min>
-								<X>0</X>
-								<Y>0</Y>
-							</min>
-							<max>
-								<X>0</X>
-								<Y>0</Y>
-							</max>
-						</Rect2D>
-						<float name="SliceScale">1</float>
 						<int64 name="SourceAssetId">-1</int64>
 						<token name="Style">0</token>
 						<BinaryString name="Tags"></BinaryString>
-						<UDim2 name="TileSize">
-							<XS>1</XS>
-							<XO>0</XO>
-							<YS>1</YS>
-							<YO>0</YO>
-						</UDim2>
+						<string name="Text">Button</string>
+						<Color3 name="TextColor3">
+							<R>0.105882362</R>
+							<G>0.164705887</G>
+							<B>0.207843155</B>
+						</Color3>
+						<bool name="TextScaled">false</bool>
+						<float name="TextSize">14</float>
+						<Color3 name="TextStrokeColor3">
+							<R>0</R>
+							<G>0</G>
+							<B>0</B>
+						</Color3>
+						<float name="TextStrokeTransparency">1</float>
+						<float name="TextTransparency">0</float>
+						<token name="TextTruncate">0</token>
+						<bool name="TextWrapped">false</bool>
+						<token name="TextXAlignment">2</token>
+						<token name="TextYAlignment">1</token>
 						<bool name="Visible">true</bool>
 						<int name="ZIndex">1</int>
 					</Properties>
-					<Item class="TextLabel" referent="RBXEE4FCBA1172E4C8ABBBA75D36B1A9955">
-						<Properties>
-							<bool name="Active">false</bool>
-							<Vector2 name="AnchorPoint">
-								<X>0.5</X>
-								<Y>0.5</Y>
-							</Vector2>
-							<BinaryString name="AttributesSerialize"></BinaryString>
-							<bool name="AutoLocalize">true</bool>
-							<token name="AutomaticSize">0</token>
-							<Color3 name="BackgroundColor3">
-								<R>1</R>
-								<G>1</G>
-								<B>1</B>
-							</Color3>
-							<float name="BackgroundTransparency">1</float>
-							<Color3 name="BorderColor3">
-								<R>0.105882362</R>
-								<G>0.164705887</G>
-								<B>0.207843155</B>
-							</Color3>
-							<token name="BorderMode">0</token>
-							<int name="BorderSizePixel">1</int>
-							<bool name="ClipsDescendants">false</bool>
-							<bool name="Draggable">false</bool>
-							<token name="Font">3</token>
-							<int name="LayoutOrder">0</int>
-							<float name="LineHeight">1</float>
-							<int name="MaxVisibleGraphemes">-1</int>
-							<string name="Name">TextLabel</string>
-							<Ref name="NextSelectionDown">null</Ref>
-							<Ref name="NextSelectionLeft">null</Ref>
-							<Ref name="NextSelectionRight">null</Ref>
-							<Ref name="NextSelectionUp">null</Ref>
-							<UDim2 name="Position">
-								<XS>0.5</XS>
-								<XO>0</XO>
-								<YS>0.5</YS>
-								<YO>0</YO>
-							</UDim2>
-							<bool name="RichText">false</bool>
-							<Ref name="RootLocalizationTable">null</Ref>
-							<float name="Rotation">0</float>
-							<bool name="Selectable">false</bool>
-							<Ref name="SelectionImageObject">null</Ref>
-							<UDim2 name="Size">
-								<XS>1</XS>
-								<XO>0</XO>
-								<YS>1</YS>
-								<YO>0</YO>
-							</UDim2>
-							<token name="SizeConstraint">0</token>
-							<int64 name="SourceAssetId">-1</int64>
-							<BinaryString name="Tags"></BinaryString>
-							<string name="Text">Label</string>
-							<Color3 name="TextColor3">
-								<R>0</R>
-								<G>0</G>
-								<B>0</B>
-							</Color3>
-							<bool name="TextScaled">false</bool>
-							<float name="TextSize">14</float>
-							<Color3 name="TextStrokeColor3">
-								<R>0</R>
-								<G>0</G>
-								<B>0</B>
-							</Color3>
-							<float name="TextStrokeTransparency">1</float>
-							<float name="TextTransparency">0</float>
-							<token name="TextTruncate">0</token>
-							<bool name="TextWrapped">false</bool>
-							<token name="TextXAlignment">2</token>
-							<token name="TextYAlignment">1</token>
-							<bool name="Visible">true</bool>
-							<int name="ZIndex">1</int>
-						</Properties>
-					</Item>
-					<Item class="UICorner" referent="RBXB8329C374AF74EA7A75053B9F7C35A69">
+					<Item class="UICorner" referent="RBXC9FD14BE15E243D8911235B2A487D985">
 						<Properties>
 							<BinaryString name="AttributesSerialize"></BinaryString>
 							<UDim name="CornerRadius">
@@ -981,7 +911,148 @@ return TextButton
 							<BinaryString name="Tags"></BinaryString>
 						</Properties>
 					</Item>
-					<Item class="UIStroke" referent="RBXA38290BD2FDF4C49ABA251725A18057A">
+				</Item>
+			</Item>
+			<Item class="ModuleScript" referent="RBX4B987C02F7B94A7899C1CCBAF96965D0">
+				<Properties>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<Content name="LinkedSource"><null></null></Content>
+					<string name="Name">TextBox</string>
+					<string name="ScriptGuid">{0C778F24-7DFF-4CE4-84A1-263D57D30ECF}</string>
+					<ProtectedString name="Source"><![CDATA[local Component = require(script.Parent.Parent.Lib.Component)
+local styles = require(script.Parent.Parent.Styles.styles)
+local class = require(script.Parent.Parent.Lib.class)
+
+local TextBox = class("TextBox"):extends(Component)
+
+function TextBox.new(name: string, options: {[string]: any?})
+	options = options or {}
+
+	local self = TextBox(script.GuiObject, name)
+
+	self.connections["Focused"] = self.instance.Focused:Connect(function()
+		self:addStyle(styles.input.selected, "selected")
+	end)
+
+	self.connections["FocusLost"] = self.instance.FocusLost:Connect(function()
+		self:removeStyle("selected")
+	end)
+
+	return self
+end
+
+function TextBox:getText()
+	return self.instance.Text
+end
+
+function TextBox:setText(value: string)
+	self.instance.Text = value
+end
+
+return TextBox
+]]></ProtectedString>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+				<Item class="TextBox" referent="RBX0CBACA725F79459DAC46221A54B56AC3">
+					<Properties>
+						<bool name="Active">false</bool>
+						<Vector2 name="AnchorPoint">
+							<X>0</X>
+							<Y>0</Y>
+						</Vector2>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<bool name="AutoLocalize">true</bool>
+						<token name="AutomaticSize">0</token>
+						<Color3 name="BackgroundColor3">
+							<R>1</R>
+							<G>1</G>
+							<B>1</B>
+						</Color3>
+						<float name="BackgroundTransparency">0</float>
+						<Color3 name="BorderColor3">
+							<R>0.105882362</R>
+							<G>0.164705887</G>
+							<B>0.207843155</B>
+						</Color3>
+						<token name="BorderMode">0</token>
+						<int name="BorderSizePixel">1</int>
+						<bool name="ClearTextOnFocus">false</bool>
+						<bool name="ClipsDescendants">false</bool>
+						<bool name="Draggable">false</bool>
+						<token name="Font">3</token>
+						<int name="LayoutOrder">0</int>
+						<float name="LineHeight">1</float>
+						<int name="MaxVisibleGraphemes">-1</int>
+						<bool name="MultiLine">false</bool>
+						<string name="Name">GuiObject</string>
+						<Ref name="NextSelectionDown">null</Ref>
+						<Ref name="NextSelectionLeft">null</Ref>
+						<Ref name="NextSelectionRight">null</Ref>
+						<Ref name="NextSelectionUp">null</Ref>
+						<Color3 name="PlaceholderColor3">
+							<R>0.699999988</R>
+							<G>0.699999988</G>
+							<B>0.699999988</B>
+						</Color3>
+						<string name="PlaceholderText">Port</string>
+						<UDim2 name="Position">
+							<XS>0</XS>
+							<XO>10</XO>
+							<YS>0</YS>
+							<YO>10</YO>
+						</UDim2>
+						<bool name="RichText">false</bool>
+						<Ref name="RootLocalizationTable">null</Ref>
+						<float name="Rotation">0</float>
+						<bool name="Selectable">false</bool>
+						<Ref name="SelectionImageObject">null</Ref>
+						<bool name="ShowNativeInput">true</bool>
+						<UDim2 name="Size">
+							<XS>0</XS>
+							<XO>80</XO>
+							<YS>0</YS>
+							<YO>30</YO>
+						</UDim2>
+						<token name="SizeConstraint">0</token>
+						<int64 name="SourceAssetId">-1</int64>
+						<BinaryString name="Tags"></BinaryString>
+						<string name="Text"></string>
+						<Color3 name="TextColor3">
+							<R>0.105882362</R>
+							<G>0.164705887</G>
+							<B>0.207843155</B>
+						</Color3>
+						<bool name="TextEditable">true</bool>
+						<bool name="TextScaled">false</bool>
+						<float name="TextSize">14</float>
+						<Color3 name="TextStrokeColor3">
+							<R>0</R>
+							<G>0</G>
+							<B>0</B>
+						</Color3>
+						<float name="TextStrokeTransparency">1</float>
+						<float name="TextTransparency">0</float>
+						<token name="TextTruncate">1</token>
+						<bool name="TextWrapped">false</bool>
+						<token name="TextXAlignment">0</token>
+						<token name="TextYAlignment">1</token>
+						<bool name="Visible">true</bool>
+						<int name="ZIndex">1</int>
+					</Properties>
+					<Item class="UICorner" referent="RBXFCABF3BB514C4951ADC0B56C07DDFFCB">
+						<Properties>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<UDim name="CornerRadius">
+								<S>0.0500000007</S>
+								<O>0</O>
+							</UDim>
+							<string name="Name">UICorner</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+						</Properties>
+					</Item>
+					<Item class="UIStroke" referent="RBXA67CC73530704F01B93C45CA1AA81E38">
 						<Properties>
 							<token name="ApplyStrokeMode">1</token>
 							<BinaryString name="AttributesSerialize"></BinaryString>
@@ -999,10 +1070,34 @@ return TextButton
 							<float name="Transparency">0</float>
 						</Properties>
 					</Item>
+					<Item class="UIPadding" referent="RBX126D8ECF3CAB4BF08F0BC83EC43CAB17">
+						<Properties>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<string name="Name">UIPadding</string>
+							<UDim name="PaddingBottom">
+								<S>0</S>
+								<O>0</O>
+							</UDim>
+							<UDim name="PaddingLeft">
+								<S>0</S>
+								<O>10</O>
+							</UDim>
+							<UDim name="PaddingRight">
+								<S>0</S>
+								<O>0</O>
+							</UDim>
+							<UDim name="PaddingTop">
+								<S>0</S>
+								<O>0</O>
+							</UDim>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+						</Properties>
+					</Item>
 				</Item>
 			</Item>
 		</Item>
-		<Item class="ModuleScript" referent="RBX6A6BF19A20FB4C28AF6F63B77DCDADBD">
+		<Item class="ModuleScript" referent="RBXF8A14C02FF4C4014B7C074B492B7764D">
 			<Properties>
 				<BinaryString name="AttributesSerialize"></BinaryString>
 				<Content name="LinkedSource"><null></null></Content>
@@ -1012,6 +1107,7 @@ return TextButton
 
 local ChangeWatcher = {
 	changes = {},
+	ignored = {},
 	connections = {}
 }
 
@@ -1067,13 +1163,32 @@ function ChangeWatcher:watch(instance: Instance)
 	end)
 
 	if instance:IsA("LuaSourceContainer") then
+		local lastChangeTime = 0
+		
 		self.connections[instance]["Edited"] = instance:GetPropertyChangedSignal("Source"):Connect(function()
-			table.insert(self.changes, {
-				change = "Edited",
-				path = Path.getPath(instance),
-				className = instance.ClassName,
-				content = instance.Source
-			})
+			if os.clock() - lastChangeTime < 0.05 then 
+				return 
+			end
+			
+			local changeTime = os.clock()
+			lastChangeTime = changeTime
+
+			if self.ignored[instance] and self.ignored[instance] > 0 then
+				self.ignored[instance] -= 1
+				return
+			end
+
+			delay(0.5, function()
+				if changeTime == lastChangeTime then
+					table.insert(self.changes, {
+						change = "Edited",
+						path = Path.getPath(instance),
+						className = instance.ClassName,
+						content = instance.Source
+					})
+					
+				end
+			end)
 		end)
 	end
 end
@@ -1094,7 +1209,7 @@ return ChangeWatcher
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBXC601191A8CEC4ADDAC17EFED1C6A8AD1">
+		<Item class="ModuleScript" referent="RBXA17DE79C0D42412D88CD238BEAE4235A">
 			<Properties>
 				<BinaryString name="AttributesSerialize"></BinaryString>
 				<Content name="LinkedSource"><null></null></Content>
@@ -1133,14 +1248,14 @@ return Path
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="Folder" referent="RBX42B13E2C5CD741A7BA86B28043680482">
+		<Item class="Folder" referent="RBXD60A7E337C334B40B6600543678D56DC">
 			<Properties>
 				<BinaryString name="AttributesSerialize"></BinaryString>
 				<string name="Name">Styles</string>
 				<int64 name="SourceAssetId">-1</int64>
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
-			<Item class="ModuleScript" referent="RBX353FA32133DC4553A1E7AA374973CA7D">
+			<Item class="ModuleScript" referent="RBX368D0C2F7372445E9E2B1CC06DAECD86">
 				<Properties>
 					<BinaryString name="AttributesSerialize"></BinaryString>
 					<Content name="LinkedSource"><null></null></Content>
@@ -1179,10 +1294,31 @@ local styles = {
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextTruncate = Enum.TextTruncate.AtEnd
 	},
+
+	input = {
+		BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.InputFieldBackground),
+		TextColor3 = themeColor(Enum.StudioStyleGuideColor.MainText),
+		PlaceholderColor3 = themeColor(Enum.StudioStyleGuideColor.MainText, Enum.StudioStyleGuideModifier.Disabled),
+
+		hover = {
+			UIStroke = {
+				Color = themeColor(Enum.StudioStyleGuideColor.InputFieldBorder, Enum.StudioStyleGuideModifier.Hover)
+			}
+		},
+
+		selected = {
+			UIStroke = {
+				Color = themeColor(Enum.StudioStyleGuideColor.InputFieldBorder, Enum.StudioStyleGuideModifier.Selected)
+			}
+		},
+
+		UIStroke = {
+			Color = themeColor(Enum.StudioStyleGuideColor.InputFieldBorder)
+		}
+	},
 	
 	button = {
 		BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.Button),
-		
 		TextColor3 = themeColor(Enum.StudioStyleGuideColor.MainText),
 		
 		hover = {
@@ -1199,7 +1335,8 @@ local styles = {
 	},
 	
 	connected = {
-		TextColor3 = Color3.fromRGB(50, 222, 50)
+		BackgroundColor3 = Color3.fromRGB(50, 200, 50),
+		TextColor3 = Color3.fromRGB(27, 27, 27)
 	}
 }
 
@@ -1210,13 +1347,14 @@ return styles
 				</Properties>
 			</Item>
 		</Item>
-		<Item class="ModuleScript" referent="RBX6E0E42CD96E54D59A43BCED659146982">
+		<Item class="ModuleScript" referent="RBXD1B9EEED51124FDA9A9DC439FF400896">
 			<Properties>
 				<BinaryString name="AttributesSerialize"></BinaryString>
 				<Content name="LinkedSource"><null></null></Content>
 				<string name="Name">View</string>
 				<string name="ScriptGuid">{86D1C01B-D173-42B3-B167-3FE6776B3A0F}</string>
 				<ProtectedString name="Source"><![CDATA[local Component = require(script.Parent.Lib.Component)
+local TextBox = require(script.Parent.Components.TextBox)
 local TextButton = require(script.Parent.Components.TextButton)
 local styles = require(script.Parent.Styles.styles)
 
@@ -1270,16 +1408,28 @@ function View:createWidget()
 	local frame = Component.new("Frame")
 	frame:addStyle(styles.mainFrame, "mainFrame")
 	frame.instance.Parent = self.widget
+
+	local portTextBox = TextBox.new("PortTextBox")
+	portTextBox:addStyle(styles.input, "input")
+	portTextBox.instance.AnchorPoint = Vector2.new(0, 0)
+	portTextBox.instance.Size = UDim2.new(1, -110, 0, 30)
+	portTextBox.instance.Position = UDim2.new(0, 10, 0, 10)
+	portTextBox.text = plugin:GetSetting("Port")
+	frame:addChild(portTextBox)
 	
 	local connectButton = TextButton.new("ConnectButton", {text = "Connect"})
 	connectButton:addStyle(styles.button, "button")
-	connectButton.instance.AnchorPoint = Vector2.new(0.5, 0.5)
-	connectButton.instance.Position = UDim2.new(0.5, 0, 0.5, 0)
+	connectButton.instance.AnchorPoint = Vector2.new(1, 0)
+	connectButton.instance.Position = UDim2.new(1, -10, 0, 10)
 	frame:addChild(connectButton)
 	
 	connectButton.instance.MouseButton1Click:Connect(function()
 		if not controller.connected then
-			controller:connect()
+			local port = tonumber(portTextBox.text)
+			if port then
+				controller:connect(port)
+				plugin:SetSetting("Port", port)
+			end
 		else
 			controller:disconnect()
 		end

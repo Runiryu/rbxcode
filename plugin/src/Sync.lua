@@ -21,12 +21,17 @@ local plugin
 
 local Sync = {
 	connected = false,
+	port = 3000,
 	instanceId = HttpService:GenerateGUID(false)
 }
 
 function Sync:init(_plugin: Plugin, _toolbar: PluginToolbar)
 	plugin = _plugin
 	
+	if not plugin:GetSetting("Port") then
+		plugin:SetSetting("Port", 3000)
+	end
+
 	View:init(self, _plugin, _toolbar)
 	
 	for name, service in pairs(services) do
@@ -68,7 +73,7 @@ function Sync:init(_plugin: Plugin, _toolbar: PluginToolbar)
 	StudioService:GetPropertyChangedSignal("ActiveScript"):Connect(function()
 		if self.connected and StudioService.ActiveScript then
 			self:requestAsync({
-				Url = "http://localhost:3000/open",
+				Url = "http://localhost:" .. self.port .. "/open",
 				Method = "POST",
 				Headers = {
 					["Content-Type"] = "application/json"
@@ -92,7 +97,7 @@ function Sync:requestAsync(options: {[string]: any}): string | {[string]: any} |
 	return success and response or nil
 end
 
-function Sync:connect()
+function Sync:connect(port: number)
 	local scripts = {}
 	for name, service in pairs(services) do
 		for _, descendant in ipairs(service:GetDescendants()) do
@@ -107,7 +112,7 @@ function Sync:connect()
 	end
 
 	local response = self:requestAsync({
-		Url = "http://localhost:3000/init",
+		Url = "http://localhost:" .. port .. "/init",
 		Method = "POST",
 		Headers = {
 			["Content-Type"] = "application/json"
@@ -118,6 +123,7 @@ function Sync:connect()
 	if response then
 		ChangeWatcher.changes = {}
 		self.connected = true
+		self.port = port
 		View:update()
 	end
 end
@@ -137,7 +143,7 @@ function Sync:_startPolling()
 			end
 
 			local response = self:requestAsync({
-				Url = "http://localhost:3000/update",
+				Url = "http://localhost:" .. self.port .. "/update",
 				Method = "POST",
 				Headers = {
 					["Content-Type"] = "application/json"
