@@ -158,6 +158,12 @@ function Sync:_startPolling()
 						local sourceContainer = Path.getInstanceFromPath(change.path)
 						
 						if sourceContainer and sourceContainer:IsA("LuaSourceContainer") then
+							if ChangeWatcher.ignored[sourceContainer] then
+								ChangeWatcher.ignored[sourceContainer] += 1
+							else
+								ChangeWatcher.ignored[sourceContainer] = 1
+							end
+							
 							sourceContainer.Source = change.content
 						end
 					end
