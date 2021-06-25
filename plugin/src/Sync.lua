@@ -27,13 +27,17 @@ local Sync = {
 
 function Sync:init(_plugin: Plugin, _toolbar: PluginToolbar)
 	plugin = _plugin
-	
+
 	if not plugin:GetSetting("Port") then
 		plugin:SetSetting("Port", 3000)
 	end
 
+	if plugin:GetSetting("OpenInExternalEditor") == nil then
+		plugin:SetSetting("OpenInExternalEditor", false)
+	end
+
 	View:init(self, _plugin, _toolbar)
-	
+
 	for name, service in pairs(services) do
 		for _, descendant in ipairs(service:GetDescendants()) do
 			if not descendant:IsA("BasePart") then
@@ -50,7 +54,7 @@ function Sync:init(_plugin: Plugin, _toolbar: PluginToolbar)
 					content = descendant.Source
 				})
 			end
-			
+
 			if not descendant:IsA("BasePart") and not ChangeWatcher.connections[descendant] then
 				ChangeWatcher:watch(descendant)
 			end
@@ -63,15 +67,15 @@ function Sync:init(_plugin: Plugin, _toolbar: PluginToolbar)
 				className = descendant.ClassName,
 				content = nil
 			})
-			
+
 			--ChangeWatcher:unwatch(descendant)
 		end)
 	end
 
 	Sync:_startPolling()
-	
+
 	StudioService:GetPropertyChangedSignal("ActiveScript"):Connect(function()
-		if self.connected and StudioService.ActiveScript then
+		if plugin:GetSetting("OpenInExternalEditor") and self.connected and StudioService.ActiveScript then
 			self:requestAsync({
 				Url = "http://localhost:" .. self.port .. "/open",
 				Method = "POST",
@@ -89,7 +93,7 @@ end
 
 function Sync:requestAsync(options: {[string]: any}): string | {[string]: any} | nil
 	options.Headers["Instance-ID"] = self.instanceId
-	
+
 	local success, response = pcall(function()
 		return HttpService:RequestAsync(options)
 	end)
@@ -137,7 +141,7 @@ function Sync:_startPolling()
 	coroutine.wrap(function()
 		while true do
 			wait(SYNC_INTERVAL)
-			
+
 			if not self.connected then
 				continue
 			end
@@ -156,20 +160,20 @@ function Sync:_startPolling()
 					self:disconnect()
 					continue
 				end
-				
+
 				local incomingChanges = HttpService:JSONDecode(response.Body)
-				
+
 				for _, change in ipairs(incomingChanges) do
 					if change.change == "Edited" then
 						local sourceContainer = Path.getInstanceFromPath(change.path)
-						
+
 						if sourceContainer and sourceContainer:IsA("LuaSourceContainer") then
 							if ChangeWatcher.ignored[sourceContainer] then
 								ChangeWatcher.ignored[sourceContainer] += 1
 							else
 								ChangeWatcher.ignored[sourceContainer] = 1
 							end
-							
+
 							sourceContainer.Source = change.content
 						end
 					end

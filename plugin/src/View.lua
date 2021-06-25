@@ -1,6 +1,7 @@
 local Component = require(script.Parent.Lib.Component)
 local TextBox = require(script.Parent.Components.TextBox)
 local TextButton = require(script.Parent.Components.TextButton)
+local Checkbox = require(script.Parent.Components.Checkbox)
 local styles = require(script.Parent.Styles.styles)
 
 local widgetInfo = DockWidgetPluginGuiInfo.new(
@@ -61,13 +62,13 @@ function View:createWidget()
 	portTextBox.instance.Position = UDim2.new(0, 10, 0, 10)
 	portTextBox.text = plugin:GetSetting("Port")
 	frame:addChild(portTextBox)
-	
+
 	local connectButton = TextButton.new("ConnectButton", {text = "Connect"})
 	connectButton:addStyle(styles.button, "button")
 	connectButton.instance.AnchorPoint = Vector2.new(1, 0)
 	connectButton.instance.Position = UDim2.new(1, -10, 0, 10)
 	frame:addChild(connectButton)
-	
+
 	connectButton.instance.MouseButton1Click:Connect(function()
 		if not controller.connected then
 			local port = tonumber(portTextBox.text)
@@ -79,7 +80,25 @@ function View:createWidget()
 			controller:disconnect()
 		end
 	end)
-	
+
+	local openInExternalCheckbox = Checkbox.new("OpenInExternalCheckbox")
+	openInExternalCheckbox:addStyle(styles.checkbox, "checkbox")
+	openInExternalCheckbox.instance.Position = UDim2.new(0, 10, 0, 50)
+	openInExternalCheckbox:setValue(plugin:GetSetting("OpenInExternalEditor"))
+	frame:addChild(openInExternalCheckbox)
+
+	local openInExternalLabel = Component.new("TextLabel", "OpenInExternalLabel")
+	openInExternalLabel:addStyle(styles.label, "label")
+	openInExternalLabel.instance.Size = UDim2.new(1, -50, 0, 20)
+	openInExternalLabel.instance.Position = UDim2.new(0, 40, 0, 50)
+	openInExternalLabel.instance.Text = "Open scripts in VSCode"
+	frame:addChild(openInExternalLabel)
+
+	openInExternalCheckbox.instance.MouseButton1Click:Connect(function()
+		openInExternalCheckbox:toggle()
+		plugin:SetSetting("OpenInExternalEditor", openInExternalCheckbox.value)
+	end)
+
 	settings().Studio.ThemeChanged:Connect(function()
 		frame:refresh()
 	end)

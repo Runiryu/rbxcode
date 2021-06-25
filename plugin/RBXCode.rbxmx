@@ -43,13 +43,17 @@ local Sync = {
 
 function Sync:init(_plugin: Plugin, _toolbar: PluginToolbar)
 	plugin = _plugin
-	
+
 	if not plugin:GetSetting("Port") then
 		plugin:SetSetting("Port", 3000)
 	end
 
+	if plugin:GetSetting("OpenInExternalEditor") == nil then
+		plugin:SetSetting("OpenInExternalEditor", false)
+	end
+
 	View:init(self, _plugin, _toolbar)
-	
+
 	for name, service in pairs(services) do
 		for _, descendant in ipairs(service:GetDescendants()) do
 			if not descendant:IsA("BasePart") then
@@ -66,7 +70,7 @@ function Sync:init(_plugin: Plugin, _toolbar: PluginToolbar)
 					content = descendant.Source
 				})
 			end
-			
+
 			if not descendant:IsA("BasePart") and not ChangeWatcher.connections[descendant] then
 				ChangeWatcher:watch(descendant)
 			end
@@ -79,15 +83,15 @@ function Sync:init(_plugin: Plugin, _toolbar: PluginToolbar)
 				className = descendant.ClassName,
 				content = nil
 			})
-			
+
 			--ChangeWatcher:unwatch(descendant)
 		end)
 	end
 
 	Sync:_startPolling()
-	
+
 	StudioService:GetPropertyChangedSignal("ActiveScript"):Connect(function()
-		if self.connected and StudioService.ActiveScript then
+		if plugin:GetSetting("OpenInExternalEditor") and self.connected and StudioService.ActiveScript then
 			self:requestAsync({
 				Url = "http://localhost:" .. self.port .. "/open",
 				Method = "POST",
@@ -105,7 +109,7 @@ end
 
 function Sync:requestAsync(options: {[string]: any}): string | {[string]: any} | nil
 	options.Headers["Instance-ID"] = self.instanceId
-	
+
 	local success, response = pcall(function()
 		return HttpService:RequestAsync(options)
 	end)
@@ -153,7 +157,7 @@ function Sync:_startPolling()
 	coroutine.wrap(function()
 		while true do
 			wait(SYNC_INTERVAL)
-			
+
 			if not self.connected then
 				continue
 			end
@@ -172,20 +176,20 @@ function Sync:_startPolling()
 					self:disconnect()
 					continue
 				end
-				
+
 				local incomingChanges = HttpService:JSONDecode(response.Body)
-				
+
 				for _, change in ipairs(incomingChanges) do
 					if change.change == "Edited" then
 						local sourceContainer = Path.getInstanceFromPath(change.path)
-						
+
 						if sourceContainer and sourceContainer:IsA("LuaSourceContainer") then
 							if ChangeWatcher.ignored[sourceContainer] then
 								ChangeWatcher.ignored[sourceContainer] += 1
 							else
 								ChangeWatcher.ignored[sourceContainer] = 1
 							end
-							
+
 							sourceContainer.Source = change.content
 						end
 					end
@@ -913,6 +917,157 @@ return TextButton
 					</Item>
 				</Item>
 			</Item>
+			<Item class="ModuleScript" referent="RBX3DAC635B532F4FC8B11B17D347D352C8">
+				<Properties>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<Content name="LinkedSource"><null></null></Content>
+					<string name="Name">Checkbox</string>
+					<string name="ScriptGuid">{61C6DD55-4D29-4F31-93EA-B4ABF7B218E4}</string>
+					<ProtectedString name="Source"><![CDATA[local Component = require(script.Parent.Parent.Lib.Component)
+local styles = require(script.Parent.Parent.Styles.styles)
+local class = require(script.Parent.Parent.Lib.class)
+
+local Checkbox = class("Checkbox"):extends(Component)
+
+function Checkbox.new(name: string, options: {[string]: any?})
+	options = options or {}
+
+	local self = Checkbox(script.GuiObject, name)
+	self:setValue(false)
+
+	return self
+end
+
+function Checkbox:getValue()
+	return self._value
+end
+
+function Checkbox:setValue(value: boolean)
+	self._value = value
+	self.instance.Text = value and "✓" or ""
+end
+
+function Checkbox:toggle()
+	self.value = not self.value
+end
+
+return Checkbox
+]]></ProtectedString>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+				<Item class="TextButton" referent="RBXE09911AF6F9840B0B330B4F53315019A">
+					<Properties>
+						<bool name="Active">false</bool>
+						<Vector2 name="AnchorPoint">
+							<X>0</X>
+							<Y>0</Y>
+						</Vector2>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<bool name="AutoButtonColor">false</bool>
+						<bool name="AutoLocalize">true</bool>
+						<token name="AutomaticSize">0</token>
+						<Color3 name="BackgroundColor3">
+							<R>1</R>
+							<G>1</G>
+							<B>1</B>
+						</Color3>
+						<float name="BackgroundTransparency">0</float>
+						<Color3 name="BorderColor3">
+							<R>0.105882362</R>
+							<G>0.164705887</G>
+							<B>0.207843155</B>
+						</Color3>
+						<token name="BorderMode">0</token>
+						<int name="BorderSizePixel">1</int>
+						<bool name="ClipsDescendants">false</bool>
+						<bool name="Draggable">false</bool>
+						<token name="Font">3</token>
+						<int name="LayoutOrder">0</int>
+						<float name="LineHeight">1</float>
+						<int name="MaxVisibleGraphemes">-1</int>
+						<bool name="Modal">false</bool>
+						<string name="Name">GuiObject</string>
+						<Ref name="NextSelectionDown">null</Ref>
+						<Ref name="NextSelectionLeft">null</Ref>
+						<Ref name="NextSelectionRight">null</Ref>
+						<Ref name="NextSelectionUp">null</Ref>
+						<UDim2 name="Position">
+							<XS>0</XS>
+							<XO>190</XO>
+							<YS>0</YS>
+							<YO>15</YO>
+						</UDim2>
+						<bool name="RichText">true</bool>
+						<Ref name="RootLocalizationTable">null</Ref>
+						<float name="Rotation">0</float>
+						<bool name="Selectable">false</bool>
+						<bool name="Selected">false</bool>
+						<Ref name="SelectionImageObject">null</Ref>
+						<UDim2 name="Size">
+							<XS>0</XS>
+							<XO>20</XO>
+							<YS>0</YS>
+							<YO>20</YO>
+						</UDim2>
+						<token name="SizeConstraint">0</token>
+						<int64 name="SourceAssetId">-1</int64>
+						<token name="Style">0</token>
+						<BinaryString name="Tags"></BinaryString>
+						<string name="Text">&lt;b&gt;&#226;&#156;&#147;&lt;/b&gt;</string>
+						<Color3 name="TextColor3">
+							<R>0.105882362</R>
+							<G>0.164705887</G>
+							<B>0.207843155</B>
+						</Color3>
+						<bool name="TextScaled">false</bool>
+						<float name="TextSize">20</float>
+						<Color3 name="TextStrokeColor3">
+							<R>0</R>
+							<G>0</G>
+							<B>0</B>
+						</Color3>
+						<float name="TextStrokeTransparency">1</float>
+						<float name="TextTransparency">0</float>
+						<token name="TextTruncate">0</token>
+						<bool name="TextWrapped">false</bool>
+						<token name="TextXAlignment">2</token>
+						<token name="TextYAlignment">1</token>
+						<bool name="Visible">true</bool>
+						<int name="ZIndex">1</int>
+					</Properties>
+					<Item class="UICorner" referent="RBX1C666CCA778948D79CDD2D8C3CD499E5">
+						<Properties>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<UDim name="CornerRadius">
+								<S>0.100000001</S>
+								<O>0</O>
+							</UDim>
+							<string name="Name">UICorner</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+						</Properties>
+					</Item>
+					<Item class="UIStroke" referent="RBX2EC684E4C0464D66A0C45A45F14EE15C">
+						<Properties>
+							<token name="ApplyStrokeMode">1</token>
+							<BinaryString name="AttributesSerialize"></BinaryString>
+							<Color3 name="Color">
+								<R>0</R>
+								<G>0</G>
+								<B>0</B>
+							</Color3>
+							<bool name="Enabled">true</bool>
+							<token name="LineJoinMode">0</token>
+							<string name="Name">UIStroke</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<BinaryString name="Tags"></BinaryString>
+							<float name="Thickness">1</float>
+							<float name="Transparency">0</float>
+						</Properties>
+					</Item>
+				</Item>
+			</Item>
 			<Item class="ModuleScript" referent="RBX4B987C02F7B94A7899C1CCBAF96965D0">
 				<Properties>
 					<BinaryString name="AttributesSerialize"></BinaryString>
@@ -1316,24 +1471,39 @@ local styles = {
 			Color = themeColor(Enum.StudioStyleGuideColor.InputFieldBorder)
 		}
 	},
-	
+
 	button = {
 		BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.Button),
 		TextColor3 = themeColor(Enum.StudioStyleGuideColor.MainText),
-		
+
 		hover = {
 			BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.Button, Enum.StudioStyleGuideModifier.Hover),
 		},
-		
+
 		pressed = {
 			BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.Button, Enum.StudioStyleGuideModifier.Pressed),
 		},
-		
+
 		UIStroke = {
 			Color = themeColor(Enum.StudioStyleGuideColor.ButtonBorder)
 		}
 	},
-	
+
+	checkbox = {
+		BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.CheckedFieldBackground),
+		TextColor3 = themeColor(Enum.StudioStyleGuideColor.MainText),
+
+		hover = {
+			UIStroke = {
+				Color = themeColor(Enum.StudioStyleGuideColor.CheckedFieldBorder, Enum.StudioStyleGuideModifier.Hover)
+			}
+		},
+
+		UIStroke = {
+			Color = themeColor(Enum.StudioStyleGuideColor.CheckedFieldBorder)
+		}
+	},
+
 	connected = {
 		BackgroundColor3 = Color3.fromRGB(50, 200, 50),
 		TextColor3 = Color3.fromRGB(27, 27, 27)
@@ -1356,6 +1526,7 @@ return styles
 				<ProtectedString name="Source"><![CDATA[local Component = require(script.Parent.Lib.Component)
 local TextBox = require(script.Parent.Components.TextBox)
 local TextButton = require(script.Parent.Components.TextButton)
+local Checkbox = require(script.Parent.Components.Checkbox)
 local styles = require(script.Parent.Styles.styles)
 
 local widgetInfo = DockWidgetPluginGuiInfo.new(
@@ -1416,13 +1587,13 @@ function View:createWidget()
 	portTextBox.instance.Position = UDim2.new(0, 10, 0, 10)
 	portTextBox.text = plugin:GetSetting("Port")
 	frame:addChild(portTextBox)
-	
+
 	local connectButton = TextButton.new("ConnectButton", {text = "Connect"})
 	connectButton:addStyle(styles.button, "button")
 	connectButton.instance.AnchorPoint = Vector2.new(1, 0)
 	connectButton.instance.Position = UDim2.new(1, -10, 0, 10)
 	frame:addChild(connectButton)
-	
+
 	connectButton.instance.MouseButton1Click:Connect(function()
 		if not controller.connected then
 			local port = tonumber(portTextBox.text)
@@ -1434,7 +1605,25 @@ function View:createWidget()
 			controller:disconnect()
 		end
 	end)
-	
+
+	local openInExternalCheckbox = Checkbox.new("OpenInExternalCheckbox")
+	openInExternalCheckbox:addStyle(styles.checkbox, "checkbox")
+	openInExternalCheckbox.instance.Position = UDim2.new(0, 10, 0, 50)
+	openInExternalCheckbox:setValue(plugin:GetSetting("OpenInExternalEditor"))
+	frame:addChild(openInExternalCheckbox)
+
+	local openInExternalLabel = Component.new("TextLabel", "OpenInExternalLabel")
+	openInExternalLabel:addStyle(styles.label, "label")
+	openInExternalLabel.instance.Size = UDim2.new(1, -50, 0, 20)
+	openInExternalLabel.instance.Position = UDim2.new(0, 40, 0, 50)
+	openInExternalLabel.instance.Text = "Open scripts in VSCode"
+	frame:addChild(openInExternalLabel)
+
+	openInExternalCheckbox.instance.MouseButton1Click:Connect(function()
+		openInExternalCheckbox:toggle()
+		plugin:SetSetting("OpenInExternalEditor", openInExternalCheckbox.value)
+	end)
+
 	settings().Studio.ThemeChanged:Connect(function()
 		frame:refresh()
 	end)

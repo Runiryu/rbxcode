@@ -53,24 +53,39 @@ local styles = {
 			Color = themeColor(Enum.StudioStyleGuideColor.InputFieldBorder)
 		}
 	},
-	
+
 	button = {
 		BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.Button),
 		TextColor3 = themeColor(Enum.StudioStyleGuideColor.MainText),
-		
+
 		hover = {
 			BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.Button, Enum.StudioStyleGuideModifier.Hover),
 		},
-		
+
 		pressed = {
 			BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.Button, Enum.StudioStyleGuideModifier.Pressed),
 		},
-		
+
 		UIStroke = {
 			Color = themeColor(Enum.StudioStyleGuideColor.ButtonBorder)
 		}
 	},
-	
+
+	checkbox = {
+		BackgroundColor3 = themeColor(Enum.StudioStyleGuideColor.CheckedFieldBackground),
+		TextColor3 = themeColor(Enum.StudioStyleGuideColor.MainText),
+
+		hover = {
+			UIStroke = {
+				Color = themeColor(Enum.StudioStyleGuideColor.CheckedFieldBorder, Enum.StudioStyleGuideModifier.Hover)
+			}
+		},
+
+		UIStroke = {
+			Color = themeColor(Enum.StudioStyleGuideColor.CheckedFieldBorder)
+		}
+	},
+
 	connected = {
 		BackgroundColor3 = Color3.fromRGB(50, 200, 50),
 		TextColor3 = Color3.fromRGB(27, 27, 27)
